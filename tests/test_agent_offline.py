@@ -180,6 +180,11 @@ def test_privacy_validator_blocks_other_customers_data(data):
     assert {v.principle for v in violations} == {"C4"}
     assert check_answer("Fale com a gente: (67) 3341-4444 ou contato@emporiodamusica.com.br",
                         evidence="", customer_text="contato?", data=data, verified_customer_id=None) == []
+    # regression: the date inside a ticket protocol is not a phone number
+    assert check_answer("Seu protocolo é **EM-20260325-CB7B**.", evidence="", customer_text="reclamar",
+                        data=data, verified_customer_id=None) == []
+    assert check_answer("Ligue para 67998123456", evidence="", customer_text="contato", data=data,
+                        verified_customer_id=None)[0].principle == "C4"
 
 
 @pytest.mark.parametrize("answer, flagged", [

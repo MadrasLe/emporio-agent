@@ -352,8 +352,11 @@ _RETURN_RESULT = {
 
 def check_return_tool(args: CheckReturnArgs, ctx: ToolContext) -> ToolOutcome:
     order = ctx.data.orders[args.order_id]
-    reasons = [args.reason] if args.reason else list(REASONS)
-    results = [(reason, check_return(order, reason, ctx.now.date())) for reason in reasons]
+    today = ctx.now.date()
+    results = [(reason, check_return(order, reason, today)) for reason in ([args.reason] if args.reason else REASONS)]
+    if args.reason and not results[0][1].decision.allowed:
+        # The asked-for path is closed: show the others too (e.g. regret expired, legal warranty still valid).
+        results += [(reason, check_return(order, reason, today)) for reason in REASONS if reason != args.reason]
     if len({result.decision.rule_id for _, result in results}) == 1:
         results = results[:1]  # e.g. a cancelled order: the same answer for every reason
 

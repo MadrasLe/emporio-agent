@@ -88,6 +88,7 @@ def test_bm25_prefers_rare_terms():
 
 @pytest.mark.parametrize("query, product_id", [
     ("Takamine GD20", 95), ("takamine gd 20", 95), ("Les Paul", 131), ("ohana ck20", 121), ("95", 95),
+    ("violão Yamaha C40", 81), ("ukulele Kala KA-15S", 116), ("baixo Music Man Bass 1X", 135),
 ])
 def test_lookup_resolves_names_and_ids(data, query, product_id):
     assert lookup(data, query).product.id == product_id

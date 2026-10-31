@@ -76,7 +76,12 @@ def evaluate_tool_call(spec: ToolSpec | None, name: str, args: dict, state: dict
 STORE_EMAILS = {"contato@emporiodamusica.com.br", "contato@empóriodamusica.com.br"}
 STORE_PHONES = ("(67) 3341-4444", "(67) 3321-4500")
 EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
-PHONE_RE = re.compile(r"(?:\(?\d{2}\)?\s*)?\d{4,5}[-\s]?\d{4}\b")
+# "(67) 99654-7821", "99654 7821", "67996547821" — but not digits glued to letters or hyphens,
+# like the date inside a ticket protocol "EM-20260325-CB7B".
+PHONE_RE = re.compile(
+    r"(?<![\w-])(?:\(?\d{2}\)?\s*)?\d{4,5}[-\s]\d{4}(?![\w-])"
+    r"|(?<![\w-])\d{10,11}(?![\w-])"
+)
 
 
 @dataclass(frozen=True)

@@ -273,6 +273,14 @@ def lookup(data: StoreData, name_or_id: str | int) -> LookupResult:
 
     query = normalize(text, glue_model_codes=True)
     choices = {pid: normalize(p.name, glue_model_codes=True) for pid, p in data.products.items()}
+
+    # A model code ("c40", "gd20", "15s") that appears in exactly one product name settles it,
+    # even with extra words around it ("violão Yamaha C40").
+    for code in (token for token in query.split() if re.search(r"\d", token) and re.search(r"[a-z]", token)):
+        owners = [pid for pid, name in choices.items() if code in name.split()]
+        if len(owners) == 1:
+            return LookupResult(data.products[owners[0]], [])
+
     ranked = process.extract(query, choices, scorer=fuzz.WRatio, limit=5)
     ranked = [(score, data.products[pid]) for _, score, pid in ranked if score >= 60]
     if not ranked:
