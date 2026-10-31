@@ -8,12 +8,11 @@
 
 **Lia:** Oi! Pode ser, sim. Para verificar as regras de devolução do seu pedido, preciso confirmar sua identidade primeiro (é uma exigência de privacidade da loja).
 
-Você poderia me informar:
-
+Me passa, por favor:
 1. O número do seu pedido
-2. Seu e-mail ou telefone de cadastro
+2. O e-mail ou telefone cadastrado na compra
 
-Com esses dados eu consigo consultar o pedido e te explicar como funciona a devolução por arrependimento. 🎸
+Com esses dados eu consigo checar tudo pra você. 🎸
 
 <details><summary>Bastidores</summary>
 
@@ -25,18 +24,20 @@ Com esses dados eu consigo consultar o pedido e te explicar como funciona a devo
 
 **Lia:** Oi, Letícia! Verifiquei seu pedido 7 e aqui está o que encontrei:
 
-**Devolução por arrependimento:** infelizmente não é possível. O prazo de 7 dias após o recebimento já terminou (expirou em 24/02/2026).
+**Arrependimento:** infelizmente não é possível. O prazo de 7 dias para desistir da compra após o recebimento já terminou (era até 24/02/2026).
 
-**Outra possibilidade:** se o instrumento tiver algum defeito de fabricação, ele ainda está dentro da garantia legal (CDC) até 18/05/2026. Nesse caso, a Empório pode intermediar o processo com o fabricante. Vale lembrar que desgaste natural, mau uso, quedas e reparos por terceiros não são cobertos.
+**Troca por preferência (cor, modelo, etc.):** também não está disponível, pois o mesmo prazo de 7 dias expirou.
 
-Se você quiser seguir com alguma dessas opções — especialmente se suspeitar de defeito — eu abro um chamado para a equipe humana analisar seu caso. Eles retornam em até 24 horas úteis.
+**Defeito de fabricação:** se o instrumento apresentar algum problema de fabricação, ainda é possível acionar a garantia legal. O prazo vai até **18/05/2026** e a Empório pode intermediar o processo com o fabricante. Atenção: desgaste natural, mau uso, quedas e reparos por terceiros não são cobertos.
+
+Se você quiser seguir com alguma dessas opções (especialmente se houver defeito), posso abrir um chamado para a equipe analisar seu caso. Eles retornam em até 24 horas úteis.
 
 Quer que eu abra o chamado para você?
 
 <details><summary>Bastidores</summary>
 
 - 🔧 `verify_customer(order_id=7, email="leticia.rocha@jmail.com")` → regra `ID_MATCH_anon`
-- 🔧 `check_return(order_id=7)` → regra `RET_REGRET_EXPIRED / RET_DEFECT_LEGAL / RET_PREF_EXPIRED`
+- 🔧 `check_return(order_id=7, reason="arrependimento")` → regra `RET_REGRET_EXPIRED / RET_DEFECT_LEGAL / RET_PREF_EXPIRED`
 - 🛡️ constituição: aprovada
 
 </details>

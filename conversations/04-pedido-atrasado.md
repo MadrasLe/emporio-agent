@@ -8,7 +8,7 @@
 
 **Lia:** Oi! Para consultar o pedido 8, preciso confirmar sua identidade primeiro (é uma regra de privacidade da loja).
 
-Você poderia me informar o **e-mail** ou o **telefone** cadastrado no pedido? Assim eu consigo verificar e te dizer o status da entrega.
+Você poderia me informar o **e-mail** ou o **telefone** cadastrado no pedido? Com isso eu consigo verificar e te dizer o status da entrega.
 
 <details><summary>Bastidores</summary>
 
@@ -18,21 +18,17 @@ Você poderia me informar o **e-mail** ou o **telefone** cadastrado no pedido? A
 
 **Cliente:** Meu telefone é (67) 99654-7821
 
-**Lia:** Oi, Ana! Consegui acessar seu pedido. Aqui está o que encontrei:
+**Lia:** Oi, Ana! Verifiquei seu pedido 8 aqui. 🎵
 
-- **Pedido 8:** Kala KA-C Concert Mogno (ukulele)
-- **Status:** enviado (em transporte)
-- **Previsão de entrega:** 28/02/2026 — já está atrasado
-- **Código de rastreio:** BRJL5544332BR
+O status é **enviado (em transporte)**, mas a previsão de entrega era 28/02 e já estamos em 25/03 — então o pedido está atrasado mesmo. Peço desculpas por isso.
 
-Você pode acompanhar a entrega pelo site dos Correios com esse código.
+O código de rastreio é **BRJL5544332BR**. Você pode acompanhar no site dos Correios ou da Jadlog.
 
-Como o pedido está atrasado, posso abrir um chamado de reclamação para a equipe da loja verificar o que está acontecendo com a entrega. A equipe retorna em até 24 horas úteis. Você quer que eu abra esse chamado para você?
+Como o pedido está atrasado, posso abrir um chamado de reclamação para a equipe investigar. A resposta vem em até 24 horas úteis. Você quer que eu registre?
 
 <details><summary>Bastidores</summary>
 
 - 🔧 `verify_customer(order_id=8, phone="(67) 99654-7821")` → regra `ID_MATCH_anon`
-- ↪ respondido pelo modelo reserva `nvidia/nemotron-3-ultra-550b-a55b:free`
 - 🔧 `get_orders(order_id=8)`
 - 🛡️ constituição: aprovada
 
@@ -40,15 +36,13 @@ Como o pedido está atrasado, posso abrir um chamado de reclamação para a equi
 
 **Cliente:** Quero registrar uma reclamação, por favor.
 
-**Lia:** Pronto, Ana! Registrei sua reclamação com o protocolo **EM-20260325-60DA**.
+**Lia:** Registrado! O protocolo da sua reclamação é **EM-20260325-A849**. A equipe da Empório da Música vai investigar o atraso do seu pedido e retorna em até 24 horas úteis.
 
-A equipe da Empório da Música vai verificar o andamento da entrega do seu ukulele e retorna para você em até 24 horas úteis, pelo telefone (67) 99654-7821.
-
-Precisa de mais alguma coisa?
+Qualquer coisa, é só chamar. Até mais! 🎵
 
 <details><summary>Bastidores</summary>
 
-- 🔧 `open_ticket(kind="reclamacao", summary="Cliente Ana reclama de atraso na entrega do pedido 8 (ukulele Kala KA-C Concert Mogno). Previsão era 28/02/2026 e ainda não chegou. Código de rastreio: BRJL5544332BR.", contact="(67) 99654-7821")`
+- 🔧 `open_ticket(kind="reclamacao", summary="Pedido 8 (Kala KA-C Concert Mogno) enviado em 15/02 com previsão de entrega 28/02, mas ainda não chegou. Código de rastreio BRJL5544332BR. Cliente Ana, telefone (67) 99654-7821.")`
 - 🛡️ constituição: aprovada
 
 </details>

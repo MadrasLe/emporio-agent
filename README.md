@@ -45,6 +45,7 @@ Configuration (`.env`):
 | `LLM_MODEL` | `nvidia/nemotron-3.5-super-vl:free` | any OpenRouter model id |
 | `LLM_FALLBACK_MODELS` | two other free models | OpenRouter tries them when the main one fails (free models often return HTTP 429) |
 | `LLM_BASE_URL` | `https://openrouter.ai/api/v1` | any OpenAI-compatible endpoint, e.g. Ollama `http://localhost:11434/v1` |
+| `EMBEDDING_MODEL` | `nvidia/nemotron-3.5-embed-1b:free` | embeddings for hybrid product search (same key); empty = BM25 only |
 | `EMPORIO_NOW` | `2026-03-25T14:30` | pinned clock (see [Assumptions](#assumptions)); remove to use the real clock |
 
 ---
@@ -82,7 +83,7 @@ customer message
                                 │ thin tools (JSON in Portuguese)
                                 ▼
       domain/ — pure Python, no LLM ─────────────────────────────────────────────
-        catalog (filters + BM25)   pricing (promo, PIX, installments)
+        catalog (filters + BM25 ⊕ embeddings, RRF)   pricing (promo, PIX, installments)
         orders (identity FSM, return/warranty rules)   store (hours, holidays, freight)
                                 │ uses
                                 ▼
@@ -93,8 +94,8 @@ customer message
 
 ```
 src/emporio/
-├── agent/        graph.py · tools.py · constitution.py · prompts.py · runtime.py · session.py
-├── domain/       catalog.py · bm25.py · pricing.py · orders.py · store.py · money.py
+├── agent/        graph.py · tools.py · constitution.py · prompts.py · runtime.py · session.py · embeddings.py
+├── domain/       catalog.py · bm25.py · semantic.py · pricing.py · orders.py · store.py · money.py
 ├── decisions/    types.py · rules.py · state_machine.py   (trimmed port from JadeAgent)
 ├── data/         loader.py · quality.py
 ├── ui/app.py     Streamlit
@@ -160,7 +161,7 @@ Seven principles; each one states how it is enforced:
 
 | | Principle | Enforced by |
 |---|---|---|
-| C1 | Only numbers that came from a tool (or the customer) | validator: every `R$` amount in the answer must appear in this conversation's tool results |
+| C1 | Only numbers that came from a tool (or the customer) | validator: every `R$` amount, ticket protocol and tracking code in the answer must appear in this conversation's tool results |
 | C2 | Promotional price always with the original price and the % | validator |
 | C3 | Order data only for its verified owner | **gate** before the tool runs (identity, ownership — without confirming that someone else's order exists) |
 | C4 | No personal data of other customers | validator (e-mails, phones, full names) |
@@ -182,14 +183,45 @@ regex/lookup checks — no extra LLM call, which matters on free-tier rate limit
   Customer-facing policy and assistant *behaviour* rules were separated: section 7 of
   the manual (tone, service flow) is instruction for the assistant, so it lives in
   `persona.md`, always loaded.
-- **Products: hybrid search.** Hard filters (category, price, availability) decide
-  what *may* be shown; **BM25** over name (double weight), description and specs
-  decides the order; fuzzy matching covers typos; the category is inferred from the
-  text only when unambiguous ("violão 7 cordas" is not forced into "Cordas
-  Orquestrais"). Before BM25, a descriptive request like *"violão bom pra tocar
-  choro"* returned nothing; now it returns the three 7-string guitars whose
-  descriptions mention *choro*. Implemented in ~35 lines without a new dependency
-  (64 products don't need a search engine).
+- **Products: hybrid search (filters → BM25 ⊕ embeddings, fused with RRF).**
+  - **Hard filters** (category, price, availability) decide what *may* be shown —
+    no ranking signal can resurrect an out-of-stock item.
+  - **BM25** over name (double weight), description and specs handles exact
+    vocabulary and model codes; fuzzy matching covers typos; the category is inferred
+    from the text only when unambiguous ("violão 7 cordas" is not forced into
+    "Cordas Orquestrais"). Without it, *"violão bom pra tocar choro"* returned
+    nothing; with it, the three 7-string guitars whose descriptions mention *choro*.
+  - **Embeddings** handle paraphrases BM25 cannot: *"ukulele pra levar em viagem"* →
+    the Kala KA-15S, "perfeito para… **viajantes**"; *"timbre quente e cheio"* → the
+    KA-SRT-CTG, "som **quente e encorpado**". Same OpenRouter key and a free model;
+    the 64 product vectors are computed in one batched call and cached on disk per
+    model and content hash; each search embeds only the query (~0.4 s).
+  - **Reciprocal Rank Fusion** combines the two rankings by position (cosine and
+    BM25 scores are not comparable, and absolute cosine thresholds were fragile:
+    relevant and irrelevant items scored 0.30–0.45). The result is every BM25 hit
+    plus the 3 nearest neighbours, ordered by fused rank.
+  - **Guard-rails:** embeddings only rank *inside* the filtered candidates and never
+    alone across the whole catalog (otherwise *"saxofone"* would return the
+    "closest" guitar instead of "that category is empty"); if the embedding call
+    fails, search silently falls back to BM25 (and says so in the tool result).
+  - **Measured, not assumed.** A retrieval benchmark (`python -m emporio.evals
+    --retrieval`, 15 customer-style paraphrases with labelled products) gives:
+
+    | Mode | hit@1 | hit@3 | MRR |
+    |---|---|---|---|
+    | BM25 only | 93% | 100% | 0.96 |
+    | Hybrid (BM25 + embeddings, RRF) | 93% | 100% | 0.97 |
+
+    Honest reading: on 64 products with short descriptions, BM25 plus a few synonyms
+    is already near the ceiling; the hybrid fixes the hardest paraphrase (*viagem* →
+    *viajantes*, rank 3 → 1) and loses one place elsewhere (*som mais grave* → the
+    baritone ukulele, rank 1 → 2). End to end, the LLM compensates for weak retrieval
+    with its own world knowledge, so both modes pass the conversation evals. I kept
+    embeddings **on by default** because the cost is small (~0.4 s per descriptive
+    search, a free model, automatic BM25 fallback) and the benefit grows with catalog
+    size and description length — the store says it has 300+ instruments. Set
+    `EMBEDDING_MODEL=` (empty) to run BM25 only. Details:
+    [`evals/RETRIEVAL.md`](evals/RETRIEVAL.md).
 
 ### 6. Model and provider
 
@@ -271,13 +303,14 @@ to use the real clock.
 
 ## Evaluation
 
-- **94 unit and offline tests** (`pytest`, no API key): every business rule, the
-  identity state machine, search, the constitution gate and validators, and the
+- **101 unit and offline tests** (`pytest`, no API key): every business rule, the
+  identity state machine, search (BM25, hybrid fusion with a fake embedder, provider
+  failure fallback, vector cache), the constitution gate and validators, and the
   full graph driven by a scripted model (verify-then-fetch in one turn, someone
   else's order blocked, invented price revised with a tool call, second violation →
   safe fallback, history persistence).
-- **Scenario evals against the real model** (`python -m emporio.evals`): 14
-  conversations / 20 turns / 78 checks in `evals/scenarios.yaml` — which tools ran
+- **Scenario evals against the real model** (`python -m emporio.evals`): 16
+  conversations / 22 turns / 84 checks in `evals/scenarios.yaml` — which tools ran
   (or were blocked), required facts in the answer (e.g. *"5x de R$ 87,84"*, the
   18/05 warranty date) and forbidden content (out-of-stock items, someone else's
   order, a "50% off" price from a prompt injection). Results:
@@ -285,8 +318,13 @@ to use the real clock.
 
 | Run | Scenarios | Checks | Avg latency / turn | Notes |
 |---|---|---|---|---|
-| `nvidia/nemotron-3.5-super-vl:free` + fallbacks (**default**) | **14/14** | **78/78** | 8.4 s | 2 turns served by a fallback model; no revisions needed |
-| `google/gemma-4-31b-it:free`, no fallback | 0/14 | 6/27 | — | 18 of 20 turns failed with HTTP 429 (free endpoint saturated) — this measures availability, not quality |
+| `nvidia/nemotron-3.5-super-vl:free` + fallbacks + hybrid search (**default**) | **16/16** | **84/84** | 4.9 s | no revisions or fallbacks needed |
+| same, BM25-only search (`--no-embeddings`) | 16/16 | 84/84 | 7.3 s | 2 turns served by a fallback model |
+| `google/gemma-4-31b-it:free`, no fallback | 0/14 | 6/27 | — | earlier 14-scenario suite; 18 of 20 turns failed with HTTP 429 (free endpoint saturated) — measures availability, not quality |
+
+Latency on free models is dominated by provider load (the same suite ranged from
+4.9 s to 10.3 s per turn across runs), so it is not used to compare search modes;
+the search itself costs ~0.4 s more with embeddings.
 
 How the evals were actually used:
 
@@ -299,6 +337,10 @@ How the evals were actually used:
      added before fuzzy matching);
   3. when asked only about *regret*, the answer omitted that the 90-day legal warranty
      was still valid (`check_return` now adds the other paths when the asked one is closed).
+- **A later run caught the model opening a complaint ticket on its own** (a write
+  action) before the customer asked. The protocol was real, but consent matters:
+  `open_ticket` now requires the customer to ask or accept, and C1 was extended so a
+  protocol or tracking code in an answer must come from a tool result.
 - **Model choice.** Gemma 4 31B (free) was the first default; its free endpoint
   kept returning 429 in sequence (table above). Nemotron 3.5 Super (free) made correct
   tool calls in a probe and passes the whole suite; OpenRouter fallbacks keep the agent
@@ -325,9 +367,9 @@ rules behind every answer:
 
 ## Known limitations and what I would do with more time
 
-- **Semantic search.** BM25 does not know that *viagem* ≈ *viajante* ("ukulele for
-  travelling" falls back to the whole category). With more time: embeddings over
-  the 64 products as a re-ranker, or LLM query expansion.
+- **Search at scale.** Brute-force cosine over 64 cached vectors is instant; a real
+  catalog would move vectors to pgvector/a vector DB and tune the fusion (RRF `k`,
+  neighbours added) on a labelled query set instead of a handful of scenarios.
 - **Free models.** Upstream rate limits make free models slow or flaky at peak
   times; fallbacks help but don't remove it. For production: a paid model with
   prompt caching (the system prompt is stable) and streaming responses.
@@ -357,7 +399,8 @@ describing the workflow because the case asks for it:
   models, Streamlit + CLI, the pinned clock, and — after first being told to skip
   it — reusing the explainable-decision primitives, state machines and
   "constitution" ideas from my own framework, JadeAgent. I also pushed for BM25
-  when the first search turned out to be keyword-only.
+  when the first search turned out to be keyword-only, and then for embeddings once
+  we confirmed they could be served by the same provider.
 - **The assistant implemented under that direction**, in small steps, each one a
   commit (see the history), guided by repository conventions written for coding
   assistants in [`AGENTS.md`](AGENTS.md) (e.g. "the LLM never computes business
@@ -365,6 +408,7 @@ describing the workflow because the case asks for it:
 - **Live testing drove the fixes.** Several commits come from running the agent
   against the real model and reading the transcripts: it offered to "reserve" items
   (→ C6), computed return deadlines itself (→ `check_return` evaluates every path),
-  didn't pass descriptive words to search (→ tool description), and free models hit
-  429s (→ OpenRouter fallbacks).
+  didn't pass descriptive words to search (→ tool description), opened a ticket
+  without being asked (→ consent rule), and free models hit 429s (→ OpenRouter
+  fallbacks).
 - I reviewed the code and the test results at each step.

@@ -6,9 +6,9 @@
 
 **Cliente:** Vocês vendem cordas de violão e pedal de guitarra?
 
-**Lia:** Não, a Empório da Música trabalha apenas com instrumentos musicais. Cordas de violão (encordoamento) e pedais de guitarra são acessórios, então não temos esses itens por aqui. 🎸
+**Lia:** Não, a Empório da Música trabalha só com instrumentos musicais. Cordas de violão (encordoamento) e pedais de guitarra são acessórios, então não temos esses itens por aqui. 🎸
 
-Posso ajudar você com algum instrumento, como violão, guitarra, baixo, teclado ou ukulele?
+Se quiser, posso mostrar os violões e guitarras que temos em estoque. Quer dar uma olhada em algum modelo?
 
 <details><summary>Bastidores</summary>
 
@@ -18,9 +18,9 @@ Posso ajudar você com algum instrumento, como violão, guitarra, baixo, teclado
 
 **Cliente:** Beleza. E qual é a capital da França?
 
-**Lia:** Essa não é da minha área, hehe! 😄 Sou a Lia, da Empório da Música, e só entendo mesmo de instrumentos musicais.
+**Lia:** Essa não é sobre música, infelizmente não consigo responder. 😊
 
-Se quiser saber sobre violões, guitarras, teclados ou qualquer outro instrumento que a gente tem por aqui, é só chamar!
+Por aqui fico por dentro de instrumentos musicais — violões, guitarras, teclados, baterias e ukuleles. Se quiser saber de algum modelo ou preço, é só me chamar!
 
 <details><summary>Bastidores</summary>
 

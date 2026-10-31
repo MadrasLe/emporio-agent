@@ -21,7 +21,7 @@
 11. Tagima Woodstock Dreadnought Natural — R$ 899,00 (PIX: R$ 854,05)
 12. Tagima TW-7 7 Cordas Aço Natural — R$ 999,00 (PIX: R$ 949,05)
 
-Todos estão disponíveis para entrega. Quer saber mais detalhes de algum deles ou precisa de ajuda com frete? 🎸
+Todos estão disponíveis para entrega. Quer saber mais detalhes de algum modelo ou precisa de ajuda com frete para sua cidade? 🎸
 
 <details><summary>Bastidores</summary>
 

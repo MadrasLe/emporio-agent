@@ -12,7 +12,7 @@ Condições:
 - **À vista no PIX:** R$ 2.089,05 (5% de desconto)
 - **Parcelado:** até 12x de R$ 183,25 sem juros
 
-Temos 5 unidades em estoque. Quer saber mais alguma coisa sobre ele?
+Temos 5 unidades em estoque. Quer saber mais alguma coisa sobre ele? 🎸
 
 <details><summary>Bastidores</summary>
 
@@ -23,15 +23,13 @@ Temos 5 unidades em estoque. Quer saber mais alguma coisa sobre ele?
 
 **Cliente:** E o ukulele Ohana CK-20? Dá pra fazer em 6x?
 
-**Lia:** O ukulele Ohana CK-20 Concert Natural está em promoção:
+**Lia:** O ukulele Ohana CK-20 Concert Natural está em promoção por **R$ 439,20** (de R$ 549,00 — 20% off).
 
-- **Preço promocional:** R$ 439,20 (20% off, de R$ 549,00)
-- **À vista no PIX:** R$ 439,20 (sem desconto extra, pois promoções não são cumulativas)
-- **Parcelamento máximo:** 5x de R$ 87,84 sem juros
+Sobre as parcelas: **não dá para fazer em 6x**, porque o valor da parcela ficaria abaixo do mínimo permitido para 4x a 6x (R$ 80,00).
 
-Infelizmente **não dá para fazer em 6x**, porque o valor da parcela ficaria abaixo do mínimo permitido para essa faixa (R$ 80,00). O máximo são 5x.
+A opção máxima é **5x de R$ 87,84 sem juros**. À vista no PIX não tem desconto extra, pois promoções não são cumulativas.
 
-Temos 6 unidades em estoque. Quer mais alguma informação?
+Temos 6 unidades em estoque. Quer mais alguma informação? 🎵
 
 <details><summary>Bastidores</summary>
 
