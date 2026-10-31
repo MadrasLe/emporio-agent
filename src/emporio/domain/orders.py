@@ -156,6 +156,8 @@ def order_view(data: StoreData, order: Order, today: date) -> dict:
         view["codigo_rastreio"] = order.tracking_code
     if order.estimated_delivery:
         view["previsao_entrega"] = f"{order.estimated_delivery:%d/%m/%Y}"
+    if order.status == "delivered":
+        view["nota_entrega"] = "a data real de recebimento não é registrada; os prazos usam a previsão de entrega"
     if order.notes:
         view["observacao"] = order.notes
     if alerts := order_alerts(order, today):

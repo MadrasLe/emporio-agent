@@ -26,7 +26,9 @@ def _args_preview(args: dict) -> str:
 
 def print_audit(audit: list[dict], trace: bool) -> None:
     for event in audit:
-        if event.get("type") == "tool":
+        if event.get("type") == "llm_fallback":
+            console.print(f"  [dim]↪ modelo principal indisponível; respondido por {event['model']}[/dim]")
+        elif event.get("type") == "tool":
             gate = event["gate"]
             if gate["outcome"] == "reject":
                 console.print(f"  [red]⛔ {event['tool']}({_args_preview(event['args'])}) bloqueado: "

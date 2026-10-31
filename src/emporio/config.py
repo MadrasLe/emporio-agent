@@ -14,7 +14,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 STORE_TZ = ZoneInfo("America/Campo_Grande")
 
 DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
-DEFAULT_MODEL = "google/gemma-4-31b-it:free"
+DEFAULT_MODEL = "nvidia/nemotron-3.5-super-vl:free"
+# Free models are often rate-limited upstream; OpenRouter tries these in order (its native "models" routing).
+DEFAULT_FALLBACK_MODELS = "google/gemma-4-31b-it:free,nvidia/nemotron-3-ultra-550b-a55b:free"
 
 
 @dataclass(frozen=True)
@@ -27,6 +29,7 @@ class Settings:
     llm_model: str
     llm_temperature: float
     now_override: datetime | None = None
+    llm_fallback_models: tuple[str, ...] = ()
 
     def now(self) -> datetime:
         """Current time in the store's timezone (pinned when EMPORIO_NOW is set)."""
@@ -51,4 +54,8 @@ def load_settings(env_file: Path | None = None) -> Settings:
         llm_model=os.getenv("LLM_MODEL", DEFAULT_MODEL),
         llm_temperature=float(os.getenv("LLM_TEMPERATURE", "0.2")),
         now_override=parse_now(os.getenv("EMPORIO_NOW")),
+        llm_fallback_models=tuple(
+            name.strip() for name in os.getenv("LLM_FALLBACK_MODELS", DEFAULT_FALLBACK_MODELS).split(",")
+            if name.strip()
+        ),
     )

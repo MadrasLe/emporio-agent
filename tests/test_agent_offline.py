@@ -98,6 +98,18 @@ def test_verify_then_fetch_in_the_same_turn(make_assistant):
     assert assistant.session_state("t1")["customer_id"] == 14
 
 
+def test_check_return_without_reason_evaluates_every_path(make_assistant):
+    assistant, model = make_assistant(
+        calls(("verify_customer", {"order_id": 7, "email": "leticia.rocha@jmail.com"}),
+              ("check_return", {"order_id": 7})),
+        AIMessage("O prazo de arrependimento terminou, mas a garantia legal ainda vale."),
+    )
+    assistant.reply("t1", "pedido 7, leticia.rocha@jmail.com, posso devolver?")
+    tool_message = [m for m in model.calls[1] if isinstance(m, ToolMessage) and m.name == "check_return"][0]
+    rules = [a["regra_aplicada"] for a in json.loads(tool_message.content)["avaliacoes"]]
+    assert rules == ["RET_REGRET_EXPIRED", "RET_DEFECT_LEGAL", "RET_PREF_EXPIRED"]
+
+
 def test_someone_elses_order_is_blocked(make_assistant):
     assistant, _ = make_assistant(
         calls(("verify_customer", {"order_id": 7, "phone": "(67) 99789-0123"}), ("get_orders", {"order_id": 1})),

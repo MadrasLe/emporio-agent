@@ -21,7 +21,14 @@ from ..data.loader import Product, StoreData
 from ..decisions import DecisionKind
 from ..domain.catalog import AVAILABILITY_LABEL, Availability, alternatives, availability, lookup, search
 from ..domain.money import brl, to_money
-from ..domain.orders import MAX_FAILED_ATTEMPTS, IdentityClaim, check_return, order_view, verify_identity
+from ..domain.orders import (
+    MAX_FAILED_ATTEMPTS,
+    REASONS,
+    IdentityClaim,
+    check_return,
+    order_view,
+    verify_identity,
+)
 from ..domain.pricing import (
     PAYMENT_COMBINATION_MIN,
     check_installments,
@@ -309,8 +316,9 @@ def get_orders(args: GetOrdersArgs, ctx: ToolContext) -> ToolOutcome:
 
 class CheckReturnArgs(BaseModel):
     order_id: int = Field(..., description="número do pedido")
-    reason: Literal["arrependimento", "defeito", "preferencia"] = Field(
-        ..., description="arrependimento (desistiu), defeito (problema de fabricação) ou preferencia (cor/modelo)")
+    reason: Literal["arrependimento", "defeito", "preferencia"] | None = Field(
+        None, description="arrependimento (desistiu), defeito (problema de fabricação) ou preferencia "
+                          "(cor/modelo); deixe vazio para avaliar todos os caminhos")
 
 
 _RETURN_RESULT = {
@@ -323,17 +331,29 @@ _RETURN_RESULT = {
 
 def check_return_tool(args: CheckReturnArgs, ctx: ToolContext) -> ToolOutcome:
     order = ctx.data.orders[args.order_id]
-    result = check_return(order, args.reason, ctx.now.date())
+    reasons = [args.reason] if args.reason else list(REASONS)
+    results = [(reason, check_return(order, reason, ctx.now.date())) for reason in reasons]
+    if len({result.decision.rule_id for _, result in results}) == 1:
+        results = results[:1]  # e.g. a cancelled order: the same answer for every reason
+
     content = {
         "pedido": order.id,
-        "motivo_informado": args.reason,
-        "resultado": _RETURN_RESULT[result.decision.kind],
-        "explicacao": result.decision.reason,
-        "detalhes": result.decision.value,
-        "regra_aplicada": result.decision.rule_id,
-        "instrucao": "explique a regra; não aprove nem garanta nada além dela; para seguir, ofereça open_ticket",
+        "avaliacoes": [
+            {"motivo": reason if len(results) > 1 or args.reason else "qualquer",
+             "resultado": _RETURN_RESULT[result.decision.kind],
+             "explicacao": result.decision.reason,
+             "detalhes": result.decision.value,
+             "regra_aplicada": result.decision.rule_id}
+            for reason, result in results
+        ],
+        "instrucao": "explique as regras; não aprove nem garanta nada além delas; para seguir, ofereça open_ticket",
     }
-    return ToolOutcome(content, decision=result.explain())
+    decision = {
+        "outcome": " / ".join(result.decision.kind.value for _, result in results),
+        "rule_id": " / ".join(result.decision.rule_id for _, result in results),
+        "checked": [step for _, result in results for step in result.explain()["checked"]],
+    }
+    return ToolOutcome(content, decision=decision)
 
 
 class OpenTicketArgs(BaseModel):

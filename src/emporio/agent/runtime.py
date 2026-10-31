@@ -24,6 +24,10 @@ def build_llm(settings: Settings) -> BaseChatModel:
 
     if not settings.llm_api_key:
         raise MissingAPIKey("LLM_API_KEY is not set. Copy .env.example to .env and add your OpenRouter key.")
+    extra_body = None
+    if settings.llm_fallback_models and "openrouter.ai" in settings.llm_base_url:
+        # OpenRouter-native fallback: if the first model errors (e.g. 429 on a free model), try the next.
+        extra_body = {"models": [settings.llm_model, *settings.llm_fallback_models]}
     return ChatOpenAI(
         model=settings.llm_model,
         base_url=settings.llm_base_url,
@@ -31,6 +35,7 @@ def build_llm(settings: Settings) -> BaseChatModel:
         temperature=settings.llm_temperature,
         timeout=90,
         max_retries=3,
+        extra_body=extra_body,
         default_headers={"X-Title": "Emporio da Musica Agent"},
     )
 

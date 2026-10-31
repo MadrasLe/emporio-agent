@@ -84,7 +84,11 @@ def build_graph(runtime: Runtime, checkpointer: Any = None):
         rounds = sum(1 for m in _current_turn(state["messages"]) if isinstance(m, AIMessage) and m.tool_calls)
         model = llm_with_tools if rounds < MAX_TOOL_ROUNDS else runtime.llm
         response = model.invoke([SystemMessage(system), *history])
-        return {"messages": [response]}
+        update: dict = {"messages": [response]}
+        served_by = response.response_metadata.get("model_name")
+        if served_by and served_by != runtime.settings.llm_model:
+            update["turn_audit"] = [*(state.get("turn_audit") or []), {"type": "llm_fallback", "model": served_by}]
+        return update
 
     def tools(state: AgentState) -> dict:
         call_message = state["messages"][-1]
