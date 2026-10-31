@@ -442,7 +442,8 @@ def build_tools(data: StoreData, knowledge: KnowledgeBase) -> dict[str, ToolSpec
                  CheckReturnArgs, check_return_tool, requires_identity=True),
         ToolSpec("open_ticket",
                  "Registra um chamado para a equipe humana (reclamação, atendimento humano, cancelamento, "
-                 "troca/devolução). Retorno em até 24h úteis.",
+                 "troca/devolução). Retorno em até 24h úteis. É uma ação de escrita: só chame quando o cliente "
+                 "pedir ou aceitar sua oferta de abrir o chamado.",
                  OpenTicketArgs, open_ticket, effects=("write",)),
     ]
     return {spec.name: spec for spec in specs}

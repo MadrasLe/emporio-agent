@@ -73,6 +73,7 @@ def evaluate_tool_call(spec: ToolSpec | None, name: str, args: dict, state: dict
 
 # --- answer validators ----------------------------------------------------------------
 
+IDENTIFIER_RE = re.compile(r"\bEM-\d{8}-[A-Z0-9]{4}\b|\bBR[A-Z0-9]{9}BR\b")  # ticket protocol, tracking code
 STORE_EMAILS = {"contato@emporiodamusica.com.br", "contato@empóriodamusica.com.br"}
 STORE_PHONES = ("(67) 3341-4444", "(67) 3321-4500")
 EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
@@ -109,6 +110,10 @@ def check_answer(answer: str, *, evidence: str, customer_text: str, data: StoreD
     for raw, values in mentioned:
         if not values & grounded:
             violations.append(Violation("C1", f"o valor {raw} não veio de nenhuma ferramenta"))
+    # ...and so must ticket protocols and tracking codes (an invented protocol is worse than none).
+    for code in set(IDENTIFIER_RE.findall(answer)):
+        if code not in evidence:
+            violations.append(Violation("C1", f"o código {code} não veio de nenhuma ferramenta"))
 
     # C2: a promotional price is always shown with the original price and the discount.
     for product in data.products.values():

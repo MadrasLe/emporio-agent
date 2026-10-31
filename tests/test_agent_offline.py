@@ -181,8 +181,8 @@ def test_privacy_validator_blocks_other_customers_data(data):
     assert check_answer("Fale com a gente: (67) 3341-4444 ou contato@emporiodamusica.com.br",
                         evidence="", customer_text="contato?", data=data, verified_customer_id=None) == []
     # regression: the date inside a ticket protocol is not a phone number
-    assert check_answer("Seu protocolo é **EM-20260325-CB7B**.", evidence="", customer_text="reclamar",
-                        data=data, verified_customer_id=None) == []
+    assert check_answer("Seu protocolo é **EM-20260325-CB7B**.", evidence='{"protocolo": "EM-20260325-CB7B"}',
+                        customer_text="reclamar", data=data, verified_customer_id=None) == []
     assert check_answer("Ligue para 67998123456", evidence="", customer_text="contato", data=data,
                         verified_customer_id=None)[0].principle == "C4"
 
@@ -198,6 +198,15 @@ def test_privacy_validator_blocks_other_customers_data(data):
 def test_unsupported_offers_are_caught(data, answer, flagged):
     violations = check_answer(answer, evidence="", customer_text="", data=data, verified_customer_id=None)
     assert any(v.principle == "C6" for v in violations) is flagged
+
+
+def test_invented_protocols_and_tracking_codes_are_caught(data):
+    evidence = '{"protocolo": "EM-20260325-CB7B", "codigo_rastreio": "BRJL5544332BR"}'
+    ok = "Protocolo EM-20260325-CB7B; rastreio BRJL5544332BR."
+    assert check_answer(ok, evidence=evidence, customer_text="", data=data, verified_customer_id=None) == []
+    invented = check_answer("Seu protocolo é EM-20260325-ZZZZ.", evidence=evidence, customer_text="",
+                            data=data, verified_customer_id=None)
+    assert [v.principle for v in invented] == ["C1"]
 
 
 def test_customer_typed_values_are_grounded(data):
