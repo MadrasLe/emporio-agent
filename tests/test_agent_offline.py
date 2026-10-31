@@ -182,6 +182,19 @@ def test_privacy_validator_blocks_other_customers_data(data):
                         evidence="", customer_text="contato?", data=data, verified_customer_id=None) == []
 
 
+@pytest.mark.parametrize("answer, flagged", [
+    ("Temos 5 unidades. Quer que eu reserve uma para você?", True),
+    ("Posso separar um pra você até amanhã.", True),
+    ("Quer que eu já feche o pedido?", True),
+    ("Não posso reservar produtos, mas a equipe finaliza sua compra pelo WhatsApp.", False),
+    ("Posso abrir um chamado para a equipe avaliar seu caso?", False),
+    ("A loja está fechada agora; posso te ajudar com outra coisa?", False),
+])
+def test_unsupported_offers_are_caught(data, answer, flagged):
+    violations = check_answer(answer, evidence="", customer_text="", data=data, verified_customer_id=None)
+    assert any(v.principle == "C6" for v in violations) is flagged
+
+
 def test_customer_typed_values_are_grounded(data):
     assert check_answer("Separei opções até R$ 1.000,00 pra você:", evidence="",
                         customer_text="violões até 1000 reais", data=data, verified_customer_id=None) == []

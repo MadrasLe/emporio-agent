@@ -6,12 +6,14 @@ Two layers, both deterministic:
   JadeAgent's ``evaluate_tool_call`` — known tools only, identity before order
   data (C3), order ownership (C3), write budget.
 * **Answer validators** (after the LLM writes): money grounding (C1), promotion
-  transparency (C2) and privacy (C4). A failing answer is revised once.
+  transparency (C2), privacy (C4) and unsupported offers (C6). A failing answer
+  is revised once.
 """
 
 from __future__ import annotations
 
 import re
+import unicodedata
 from dataclasses import dataclass
 
 from ..data.loader import StoreData
@@ -134,8 +136,26 @@ def check_answer(answer: str, *, evidence: str, customer_text: str, data: StoreD
         if customer.id != verified_customer_id and name in lowered and name not in typed:
             violations.append(Violation("C4", "a resposta cita o nome completo de outro cliente"))
 
+    # C6: no offers to do what only the team can do (reserve, close a sale, process payments).
+    if offer := UNSUPPORTED_OFFER_RE.search(_plain(answer)):
+        violations.append(Violation(
+            "C6", f"ofereceu algo que a assistente não faz ('{offer.group(0)}'): ela não reserva, separa, fecha "
+                  "venda nem processa pagamentos; para comprar, o cliente finaliza com a equipe pelo WhatsApp "
+                  "ou na loja"))
+
     unique: dict[tuple[str, str], Violation] = {(v.principle, v.message): v for v in violations}
     return list(unique.values())
+
+
+def _plain(text: str) -> str:
+    return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().lower()
+
+
+# "quer que eu reserve", "posso separar um pra você", "vou fechar seu pedido" — but not "não posso reservar".
+UNSUPPORTED_OFFER_RE = re.compile(
+    r"(?<!nao )\b(?:quer que eu|gostaria que eu|deseja que eu|posso|vou|ja)\b[^.?!\n]{0,40}?"
+    r"\b(?:reserv\w*|separ[aeo]\w*|finaliz\w*|fech(?:ar|o|e|amos)\b|process(?:ar|o|e|amos)\b)"
+)
 
 
 def critique_message(violations: list[Violation]) -> str:
