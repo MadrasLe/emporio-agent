@@ -104,9 +104,21 @@ def is_large_item(product: Product) -> bool:
             or (product.category_id == 8 and "contrabaixo" in name))
 
 
+def is_local(city: str) -> bool:
+    return normalize(city) in LOCAL_CITIES
+
+
+def local_shipping_fee(city: str, order_value: Decimal) -> Decimal | None:
+    """Fee for metro-area deliveries; None when the freight depends on the carrier quote."""
+
+    if not is_local(city):
+        return None
+    return Decimal(0) if order_value > FREE_SHIPPING_ABOVE else LOCAL_FEE
+
+
 def shipping_quote(city: str, order_value: Decimal | None = None, products: list[Product] | None = None) -> dict:
     large = [p.name for p in products or [] if is_large_item(p)]
-    if normalize(city) in LOCAL_CITIES:
+    if is_local(city):
         quote = {"regiao": "Região Metropolitana de Campo Grande", "entrega": "motoboy próprio, 1 a 3 dias úteis",
                  "contato": "o cliente recebe uma ligação antes da entrega"}
         if order_value is None:

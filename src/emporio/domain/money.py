@@ -29,22 +29,27 @@ def brl(value: Decimal | float | int | str) -> str:
 _BRL_MENTION = re.compile(r"R\$\s*(\d[\d.,]*\d|\d)")
 
 
-def _interpretations(raw: str) -> set[Decimal]:
+def number_values(raw: str) -> set[Decimal]:
     """All plausible values of a number written in pt-BR or en-US style."""
 
-    values: set[Decimal] = set()
+    candidates: list[str] = []
     if "," in raw:  # pt-BR: dots group thousands, comma is the decimal separator
-        values.add(Decimal(raw.replace(".", "").replace(",", ".")))
+        candidates.append(raw.replace(".", "").replace(",", "."))
+        candidates.append(raw.replace(",", ""))  # en-US "1,000.50"
     elif re.fullmatch(r"\d{1,3}(\.\d{3})+", raw):  # "2.199" -> 2199 (also 2.199 if a decimal)
-        values.add(Decimal(raw.replace(".", "")))
+        candidates.append(raw.replace(".", ""))
         if raw.count(".") == 1:
-            values.add(Decimal(raw))
+            candidates.append(raw)
     else:
+        candidates.append(raw)
+
+    values: set[Decimal] = set()
+    for candidate in candidates:
         try:
-            values.add(Decimal(raw))
+            values.add(to_money(candidate))
         except ArithmeticError:
             pass
-    return {to_money(value) for value in values}
+    return values
 
 
 def find_brl_amounts(text: str) -> list[tuple[str, set[Decimal]]]:
@@ -53,7 +58,7 @@ def find_brl_amounts(text: str) -> list[tuple[str, set[Decimal]]]:
     found = []
     for match in _BRL_MENTION.finditer(text):
         raw = match.group(1).rstrip(".,")
-        values = _interpretations(raw)
+        values = number_values(raw)
         if values:
             found.append((match.group(0).rstrip(".,"), values))
     return found
