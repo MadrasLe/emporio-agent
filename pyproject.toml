@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "emporio-agent"
+version = "0.1.0"
+description = "Customer-service agent prototype for Empório da Música (Artefact AI Engineer case)"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Gabriel Yogi" }]
+dependencies = [
+    "langgraph>=1.0,<2",
+    "langgraph-checkpoint-sqlite>=2.0",
+    "langchain-core>=1.0,<2",
+    "langchain-openai>=1.0,<2",
+    "pydantic>=2.6",
+    "python-dotenv>=1.0",
+    "PyYAML>=6.0",
+    "rapidfuzz>=3.0",
+    "rich>=13.0",
+    "tzdata>=2024.1",
+]
+
+[project.optional-dependencies]
+ui = ["streamlit>=1.35"]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+emporio = "emporio.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
