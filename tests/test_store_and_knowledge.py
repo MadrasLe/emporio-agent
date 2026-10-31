@@ -52,4 +52,5 @@ def test_quality_report_finds_known_issues(data, today):
     codes = {(f.code, f.message.split(":")[0]) for f in run_checks(data, today)}
     found = {code for code, _ in codes}
     assert {"CATEGORY_EMPTY", "DISCONTINUED_WITH_STOCK", "ORDER_TOTAL_MISMATCH", "ORDER_INSTALLMENT_RULE",
-            "CUSTOMER_DUPLICATE_EMAIL", "ORDER_LATE", "ORDER_COMING_SOON_PRODUCT"} <= found
+            "CUSTOMER_DUPLICATE_EMAIL", "ORDER_LATE", "ORDER_COMING_SOON_PRODUCT",
+            "DESCRIPTION_BRAND_MISMATCH"} <= found

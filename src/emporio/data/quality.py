@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
+from ..domain.catalog import description_brand_conflict
 from ..domain.money import brl
 from ..domain.orders import STALE_AFTER_DAYS
 from ..domain.pricing import check_installments
@@ -48,6 +49,10 @@ def run_checks(data: StoreData, today: date) -> list[Finding]:
         if p.status == "coming_soon" and p.stock > 0:
             add("COMING_SOON_WITH_STOCK", "warning", f"#{p.id} {p.name} is coming_soon but has stock {p.stock}",
                 "status wins: shown as 'em breve', not for sale")
+        if conflict := description_brand_conflict(p):
+            add("DESCRIPTION_BRAND_MISMATCH", "warning",
+                f"#{p.id} {p.name}: description cites another brand ({', '.join(sorted(conflict))})",
+                "get_product flags it; the agent uses the product name and does not assert the description")
 
     promo_count = Counter(promo.product_id for promo in data.promotions)
     for product_id, count in sorted(promo_count.items()):

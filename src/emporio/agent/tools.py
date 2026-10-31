@@ -19,7 +19,15 @@ from pydantic import BaseModel, Field
 
 from ..data.loader import Product, StoreData
 from ..decisions import DecisionKind
-from ..domain.catalog import AVAILABILITY_LABEL, Availability, alternatives, availability, lookup, search
+from ..domain.catalog import (
+    AVAILABILITY_LABEL,
+    Availability,
+    alternatives,
+    availability,
+    description_brand_conflict,
+    lookup,
+    search,
+)
 from ..domain.money import brl, to_money
 from ..domain.orders import (
     MAX_FAILED_ATTEMPTS,
@@ -91,8 +99,10 @@ def to_json(content: dict) -> str:
 
 def _product_line(data: StoreData, product: Product) -> dict:
     q = quote(data, product)
-    line = {"id": product.id, "nome": product.name, "preco": brl(q.price),
+    line = {"id": product.id, "nome": product.name, "preco": brl(q.price) + " (cartão ou boleto)",
             "disponibilidade": AVAILABILITY_LABEL[availability(product)]}
+    if q.pix_price is not None:
+        line["preco_pix"] = brl(q.pix_price)
     if q.promotion:
         line["promocao"] = (f"{q.promotion.discount_percent}% off ({q.promotion.description}): "
                             f"de {brl(q.list_price)} por {brl(q.price)}")
@@ -117,7 +127,10 @@ def _not_found(text: str, candidates: list[Product], data: StoreData) -> dict:
 # --- catalog ----------------------------------------------------------------------
 
 class SearchProductsArgs(BaseModel):
-    query: str = Field("", description="palavras-chave livres, ex.: 'nylon elétrico', 'tenor', '7 cordas', 'iniciante'")
+    query: str = Field("", description="palavras do cliente que descrevem o que ele quer: estilo, uso ou "
+                                       "característica (ex.: 'choro', 'rock', 'iniciante', 'nylon elétrico', "
+                                       "'tenor', '7 cordas'). Sempre preencha quando o cliente descrever algo: "
+                                       "os resultados vêm ordenados por relevância (BM25)")
     category: str = Field("", description="categoria do catálogo, ex.: 'violões', 'guitarras', 'ukuleles'")
     min_price: float | None = Field(None, description="preço mínimo em reais")
     max_price: float | None = Field(None, description="preço máximo em reais")
@@ -137,10 +150,14 @@ def search_products(args: SearchProductsArgs, ctx: ToolContext) -> ToolOutcome:
                      "total_encontrado": len(result.products),
                      "produtos": [_product_line(data, p) for p in result.products]}
     if result.category:
-        content["categoria"] = result.category.name
+        content["categoria"] = result.category.name + (" (deduzida do texto)" if result.category_inferred else "")
         if not data.products_in(result.category.id):
             content["observacao"] = (f"a categoria {result.category.name} não tem nenhum produto no catálogo "
                                      "no momento; não invente itens, ofereça encaminhar o interesse à equipe")
+    if result.text_matched:
+        content["ordem"] = "por relevância para os termos buscados"
+    elif result.text_matched is False and result.products:
+        content["relevancia"] = "nenhum item cita esses termos; segue a categoria inteira por preço"
     if not result.products and args.max_price is not None:
         closest = search(data, query=args.query, category=args.category, limit=3).products
         content["mais_baratos_disponiveis"] = [_product_line(data, p) for p in closest]
@@ -167,6 +184,10 @@ def get_product(args: GetProductArgs, ctx: ToolContext) -> ToolOutcome:
         "descricao": p.description, "especificacoes": p.specs,
         "disponibilidade": AVAILABILITY_LABEL[status],
     }
+    if conflict := description_brand_conflict(p):
+        content["atencao_dados"] = (f"a descrição cadastrada cita outra marca ({', '.join(sorted(conflict))}); "
+                                    "use só o nome do produto e não afirme marca/modelo da descrição sem "
+                                    "confirmar com a equipe")
     if status in (Availability.AVAILABLE, Availability.OUT_OF_STOCK):
         q = quote(data, p)
         content["precos"] = q.to_dict()
