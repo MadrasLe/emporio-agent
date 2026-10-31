@@ -45,6 +45,7 @@ from ..domain.pricing import (
     quote,
     quote_cart,
 )
+from ..domain.semantic import SemanticIndex
 from ..domain.store import local_shipping_fee, shipping_quote, store_status
 from ..knowledge import KnowledgeBase
 
@@ -56,6 +57,7 @@ class ToolContext:
     now: datetime
     state: dict  # identity_state, customer_id, failed_attempts, tickets
     tickets_path: Path
+    semantic: SemanticIndex | None = None  # embeddings for hybrid search (None = BM25 only)
 
 
 @dataclass
@@ -142,7 +144,7 @@ def search_products(args: SearchProductsArgs, ctx: ToolContext) -> ToolOutcome:
     result = search(data, query=args.query, category=args.category,
                     min_price=to_money(args.min_price) if args.min_price is not None else None,
                     max_price=to_money(args.max_price) if args.max_price is not None else None,
-                    include_unavailable=args.include_unavailable)
+                    include_unavailable=args.include_unavailable, semantic=ctx.semantic)
     if result.unknown_category:
         return ToolOutcome({"erro": f"a loja não tem a categoria '{result.unknown_category}'",
                             "categorias_da_loja": [c.name for c in data.categories.values()]})
@@ -154,10 +156,7 @@ def search_products(args: SearchProductsArgs, ctx: ToolContext) -> ToolOutcome:
         if not data.products_in(result.category.id):
             content["observacao"] = (f"a categoria {result.category.name} não tem nenhum produto no catálogo "
                                      "no momento; não invente itens, ofereça encaminhar o interesse à equipe")
-    if result.text_matched:
-        content["ordem"] = "por relevância para os termos buscados"
-    elif result.text_matched is False and result.products:
-        content["relevancia"] = "nenhum item cita esses termos; segue a categoria inteira por preço"
+    content["ordem"] = result.ranking
     if not result.products and args.max_price is not None:
         closest = search(data, query=args.query, category=args.category, limit=3).products
         content["mais_baratos_disponiveis"] = [_product_line(data, p) for p in closest]

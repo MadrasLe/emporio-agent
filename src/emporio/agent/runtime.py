@@ -11,7 +11,9 @@ from langchain_core.language_models import BaseChatModel
 
 from ..config import Settings, load_settings
 from ..data.loader import StoreData, load_store_data
+from ..domain.semantic import SemanticIndex
 from ..knowledge import KnowledgeBase, load_knowledge
+from .embeddings import OpenAIEmbedder
 from .tools import ToolSpec, build_tools
 
 
@@ -47,6 +49,7 @@ class Runtime:
     knowledge: KnowledgeBase
     llm: BaseChatModel
     tools: dict[str, ToolSpec] = field(default_factory=dict)
+    semantic: SemanticIndex | None = None
 
     def now(self) -> datetime:
         return self.settings.now()
@@ -56,11 +59,21 @@ class Runtime:
         return self.settings.state_dir / "tickets.jsonl"
 
 
+def build_semantic_index(settings: Settings, data: StoreData) -> SemanticIndex | None:
+    """Embeddings for hybrid search; None (BM25 only) when disabled or without a key."""
+
+    if not settings.embedding_model or not settings.llm_api_key:
+        return None
+    embedder = OpenAIEmbedder(settings.embedding_model, settings.llm_base_url, settings.llm_api_key)
+    return SemanticIndex(embedder, data, cache_dir=settings.state_dir)
+
+
 def load_runtime(settings: Settings | None = None, llm: BaseChatModel | None = None) -> Runtime:
     settings = settings or load_settings()
     data = load_store_data(settings.data_dir)
     knowledge = load_knowledge(settings.knowledge_dir)
-    return Runtime(settings, data, knowledge, llm or build_llm(settings), build_tools(data, knowledge))
+    return Runtime(settings, data, knowledge, llm or build_llm(settings), build_tools(data, knowledge),
+                   build_semantic_index(settings, data))
 
 
 def open_checkpointer(settings: Settings):

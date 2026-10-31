@@ -17,6 +17,8 @@ DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
 DEFAULT_MODEL = "nvidia/nemotron-3.5-super-vl:free"
 # Free models are often rate-limited upstream; OpenRouter tries these in order (its native "models" routing).
 DEFAULT_FALLBACK_MODELS = "google/gemma-4-31b-it:free,nvidia/nemotron-3-ultra-550b-a55b:free"
+# Embeddings for hybrid product search (same key and endpoint). Empty disables them (BM25 only).
+DEFAULT_EMBEDDING_MODEL = "nvidia/nemotron-3.5-embed-1b:free"
 
 
 @dataclass(frozen=True)
@@ -30,6 +32,7 @@ class Settings:
     llm_temperature: float
     now_override: datetime | None = None
     llm_fallback_models: tuple[str, ...] = ()
+    embedding_model: str = ""
 
     def now(self) -> datetime:
         """Current time in the store's timezone (pinned when EMPORIO_NOW is set)."""
@@ -58,4 +61,5 @@ def load_settings(env_file: Path | None = None) -> Settings:
             name.strip() for name in os.getenv("LLM_FALLBACK_MODELS", DEFAULT_FALLBACK_MODELS).split(",")
             if name.strip()
         ),
+        embedding_model=os.getenv("EMBEDDING_MODEL", DEFAULT_EMBEDDING_MODEL).strip(),
     )

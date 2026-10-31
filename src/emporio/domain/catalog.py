@@ -3,6 +3,8 @@
 Search is hybrid: hard filters (category, price, availability) decide what *can*
 be shown; BM25 over name, description and specs decides the *order*, so a
 descriptive request ("violão bom pra tocar choro") still finds the right items.
+When an embedding model is configured, its ranking is fused with BM25 (RRF) so
+paraphrases also work ("ukulele pra levar em viagem" -> "perfeito para viajantes").
 """
 
 from __future__ import annotations
@@ -18,6 +20,7 @@ from rapidfuzz import fuzz, process
 from ..data.loader import Category, Product, StoreData
 from .bm25 import BM25
 from .pricing import quote
+from .semantic import SemanticIndex, reciprocal_rank_fusion
 
 
 class Availability(str, Enum):
@@ -193,7 +196,14 @@ def infer_category(data: StoreData, tokens: list[str], *, use_descriptions: bool
 
 # --- search -----------------------------------------------------------------------------
 
-RELATIVE_CUTOFF = 0.5  # keep results scoring at least half of the best one
+RELATIVE_CUTOFF = 0.5  # keep BM25 results scoring at least half of the best one
+SEMANTIC_TOP_K = 3  # nearest neighbours by embedding added to the BM25 hits
+
+RANKING_PRICE = "preço (sem termos de busca)"
+RANKING_BM25 = "relevância BM25"
+RANKING_HYBRID = "relevância híbrida (BM25 + embeddings, fusão RRF)"
+RANKING_BM25_FALLBACK = "relevância BM25 (embeddings indisponíveis agora)"
+RANKING_CATEGORY = "categoria por preço (nenhum item corresponde aos termos)"
 
 
 @dataclass(frozen=True)
@@ -203,11 +213,18 @@ class SearchResult:
     unknown_category: str | None = None
     category_inferred: bool = False
     text_matched: bool | None = None  # None: no free-text query; False: nothing matched the words
+    ranking: str = RANKING_PRICE
 
 
 def search(data: StoreData, *, query: str = "", category: str = "", min_price: Decimal | None = None,
-           max_price: Decimal | None = None, include_unavailable: bool = False, limit: int = 15) -> SearchResult:
-    """Filter the catalog, then rank by BM25. Price filters use the price the customer actually pays."""
+           max_price: Decimal | None = None, include_unavailable: bool = False, limit: int = 15,
+           semantic: SemanticIndex | None = None) -> SearchResult:
+    """Filter the catalog, then rank by BM25 (fused with embeddings when available).
+
+    Price filters use the price the customer actually pays. Embeddings only rank
+    inside the filtered candidates, and never on their own across the whole
+    catalog: "saxofone" must not return the "closest" guitar.
+    """
 
     chosen = find_category(data, category) if category else None
     if category and chosen is None:
@@ -239,21 +256,35 @@ def search(data: StoreData, *, query: str = "", category: str = "", min_price: D
 
     index = _index(data)
     weights = _query_weights(tokens, index.vocabulary)
-    scored = [(index.score(p.id, weights), price, p) for price, p in candidates]
+    scored = sorted(((index.score(p.id, weights), price, p) for price, p in candidates),
+                    key=lambda item: (-item[0], item[1], item[2].id))
     scored = [item for item in scored if item[0] > 0]
+    bm25_hits = [p for score, _, p in scored if score >= RELATIVE_CUTOFF * scored[0][0]] if scored else []
+
+    ranking = RANKING_BM25
+    if semantic is not None and (scored or chosen is not None):
+        try:
+            semantic_order = [pid for pid, _ in semantic.rank(query, [p.id for _, p in candidates])]
+        except Exception:  # provider down or rate-limited: BM25 alone still works
+            ranking = RANKING_BM25_FALLBACK
+        else:
+            fused = reciprocal_rank_fusion([p.id for _, _, p in scored], semantic_order)
+            selected = {p.id for p in bm25_hits} | set(semantic_order[:SEMANTIC_TOP_K])
+            products = sorted((data.products[pid] for pid in selected), key=lambda p: (-fused[p.id], p.id))
+            return SearchResult(products[:limit], chosen, category_inferred=inferred, text_matched=True,
+                                ranking=RANKING_HYBRID)
+
     if not scored:
         if chosen is None:
             # Maybe the customer named something a category covers but the catalog lacks ('saxofone').
             covering, _ = infer_category(data, tokens, use_descriptions=True)
-            return SearchResult([], covering, category_inferred=covering is not None, text_matched=False)
+            return SearchResult([], covering, category_inferred=covering is not None, text_matched=False,
+                                ranking=ranking)
         candidates.sort(key=lambda item: (item[0], item[1].id))  # fall back to the whole category
         return SearchResult([p for _, p in candidates[:limit]], chosen, category_inferred=inferred,
-                            text_matched=False)
+                            text_matched=False, ranking=RANKING_CATEGORY)
 
-    best = max(score for score, _, _ in scored)
-    ranked = sorted((item for item in scored if item[0] >= RELATIVE_CUTOFF * best),
-                    key=lambda item: (-item[0], item[1], item[2].id))
-    return SearchResult([p for _, _, p in ranked[:limit]], chosen, category_inferred=inferred, text_matched=True)
+    return SearchResult(bm25_hits[:limit], chosen, category_inferred=inferred, text_matched=True, ranking=ranking)
 
 
 # --- lookup and alternatives ---------------------------------------------------------------

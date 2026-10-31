@@ -1,0 +1,34 @@
+# Retrieval benchmark for product search: python -m emporio.evals --retrieval
+# Customer-style requests (deliberately not copying the descriptions' words) and the
+# product ids a good answer should surface. Measures where the first relevant item lands.
+
+- query: "ukulele pra levar em viagem"
+  relevant: [116]          # "perfeito para iniciantes e viajantes"
+- query: "ukulele com timbre quente e cheio"
+  relevant: [126]          # "som quente e encorpado"
+- query: "violão pra roda de choro"
+  relevant: [109, 110, 111]
+- query: "guitarra pra tocar metal bem rápido"
+  relevant: [132]          # "braço super rápido para shred e metal"
+- query: "baixo de cinco cordas pra slap"
+  relevant: [137]
+- query: "contrabaixo agressivo pra banda de rock"
+  relevant: [138]          # "ataque agressivo ... para rock e metal"
+- query: "bateria pra tocar em show grande"
+  relevant: [140, 141]     # "projeção em palcos" / "para shows e ensaios"
+- query: "piano digital pra tocar no palco"
+  relevant: [143]          # "Piano de palco Nord Stage"
+- query: "teclado completo com teclas pesadas de piano"
+  relevant: [142]          # "88 teclas pesadas"
+- query: "teclado barato pra estudar em casa"
+  relevant: [144]          # "custo-benefício para estudantes"
+- query: "violão de nylon pra quem nunca tocou"
+  relevant: [81, 83, 85]
+- query: "violão pra se apresentar ao vivo plugado"
+  relevant: [94, 98, 104, 106]
+- query: "ukulele de som mais grave, parecido com violão"
+  relevant: [128]          # barítono: "uma ponte entre o ukulele e o violão"
+- query: "guitarra de som brilhante que serve pra vários estilos"
+  relevant: [145]
+- query: "ukulele elétrico pra gravar em estúdio"
+  relevant: [122]

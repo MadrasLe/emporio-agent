@@ -107,7 +107,8 @@ def build_graph(runtime: Runtime, checkpointer: Any = None):
             else:
                 try:
                     parsed = spec.args.model_validate(args)
-                    ctx = ToolContext(runtime.data, runtime.knowledge, runtime.now(), session, runtime.tickets_path)
+                    ctx = ToolContext(runtime.data, runtime.knowledge, runtime.now(), session, runtime.tickets_path,
+                                      runtime.semantic)
                     outcome = spec.handler(parsed, ctx)
                     content = outcome.content
                     session.update(outcome.state_updates)

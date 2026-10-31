@@ -103,6 +103,20 @@
       expect_tools: [search_products]
       must_include: ["7 cordas", "Rozini"]
 
+- id: parafrase-viagem
+  title: "Paráfrase: ukulele para viagem (embeddings)"
+  turns:
+    - user: "Quero um ukulele pra levar nas minhas viagens, qual vocês indicam?"
+      expect_tools: [search_products]
+      must_include: ["KA-15S"]
+
+- id: parafrase-som-quente
+  title: "Paráfrase: som quente e encorpado (embeddings)"
+  turns:
+    - user: "Tem algum ukulele com timbre quente e cheio, pra tocar em apresentações?"
+      expect_tools: [search_products]
+      must_include: ["KA-SRT-CTG"]
+
 - id: carrinho-com-frete
   title: "Orçamento de dois itens com entrega em Campo Grande"
   turns:
