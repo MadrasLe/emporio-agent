@@ -381,7 +381,7 @@ rules behind every answer:
 - **Validators are lexical.** C1/C2/C4/C6 catch the high-risk failures cheaply but
   not every hallucination (e.g. a wrong spec without a price). Next: an LLM-as-judge
   in the eval suite (not in the hot path) and more adversarial scenarios.
-- **Evals are small** (14 scenarios) and run one sample per scenario; I would add
+- **Evals are small** (16 scenarios) and run one sample per scenario; I would add
   repeated runs to measure variance and track regressions in CI.
 - **Observability.** Audit events are shown in the UI/CLI but not shipped anywhere;
   next would be tracing (e.g. Langfuse/LangSmith) and the decision trace hashes
